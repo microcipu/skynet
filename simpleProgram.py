@@ -93,29 +93,24 @@ class ApplicationWindow(QtWidgets.QMainWindow):
         self.main_widget = QtWidgets.QWidget(self)
 
         l = QtWidgets.QGridLayout(self.main_widget)
-        self.sc = MyDynamicMplCanvas(self.main_widget, width=5, height=4, dpi=100, title='Test')
-        dc = MyDynamicMplCanvas(self.main_widget, width=5, height=4, dpi=100)
-        self.pret = MyDynamicMplCanvas(self.main_widget, width=5, height=4, dpi=100)
-        val = MyDynamicMplCanvas(self.main_widget, width=5, height=4, dpi=100)
-        profit = MyDynamicMplCanvas(self.main_widget, width=5, height=4, dpi=100)
-        test = MyDynamicMplCanvas(self.main_widget, width=5, height=4, dpi=100)
+        self.sc = MyDynamicMplCanvas(self.main_widget, width=5, height=4, dpi=100, title='sc')
+        self.dc = MyDynamicMplCanvas(self.main_widget, width=5, height=4, dpi=100, title='dc')
+        self.pret = MyDynamicMplCanvas(self.main_widget, width=5, height=4, dpi=100, title='pret')
+        self.val = MyDynamicMplCanvas(self.main_widget, width=5, height=4, dpi=100, title='val')
+        self.profit = MyDynamicMplCanvas(self.main_widget, width=5, height=4, dpi=100, title='profit')
+        self.test = MyDynamicMplCanvas(self.main_widget, width=5, height=4, dpi=100, title='test')
 
         timer = QtCore.QTimer(self)
         timer.timeout.connect(self.update_plot)
         timer.start(10)
 
-
-
         l.addWidget(self.sc, 0, 1)
-        l.addWidget(dc, 0, 2)
+        l.addWidget(self.dc, 0, 2)
         l.addWidget(self.pret, 0, 3)
-        l.addWidget(val, 1, 1)
-        l.addWidget(profit, 1, 2)
-        l.addWidget(test, 1, 3)
+        l.addWidget(self.val, 1, 1)
+        l.addWidget(self.profit, 1, 2)
+        l.addWidget(self.test, 1, 3)
 
-
-
-        # Build a list of 4 random integers between 0 and 10 (both inclusive)
 
         self.main_widget.setFocus()
         self.setCentralWidget(self.main_widget)
@@ -144,19 +139,7 @@ class ApplicationWindow(QtWidgets.QMainWindow):
         self.fileQuit()
 
     def about(self):
-        QtWidgets.QMessageBox.about(self, "About",
-                                    """embedding_in_qt5.py example
-Copyright 2005 Florent Rougon, 2006 Darren Dale, 2015 Jens H Nielsen
-
-This program is a simple example of a Qt5 application embedding matplotlib
-canvases.
-
-It may be used and modified with no restriction; raw copies as well as
-modified versions may be distributed without limitation.
-
-This is modified from the embedding in qt4 example to show the difference
-between qt4 and qt5"""
-                                )
+        QtWidgets.QMessageBox.about(self, "About", "About")
 
 
 class inputdialogdemo(QWidget):
