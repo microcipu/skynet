@@ -19,11 +19,11 @@ import matplotlib
 matplotlib.use('Qt5Agg')
 from PyQt5 import QtCore, QtWidgets, QtGui
 from PyQt5.QtWidgets import *
-from PyQt5.QtCore import QCoreApplication
 
 from numpy import arange, sin, pi
 from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
 from matplotlib.figure import Figure
+import matplotlib.gridspec as gridspec
 
 progname = os.path.basename(sys.argv[0])
 progversion = "0.1"
@@ -32,8 +32,10 @@ progversion = "0.1"
 class MyMplCanvas(FigureCanvas):
     """Ultimately, this is a QWidget (as well as a FigureCanvasAgg, etc.)."""
 
-    def __init__(self, parent=None, width=5, height=4, dpi=100):
+    def __init__(self, parent=None, width=5, height=4, dpi=100, title='Default'):
         fig = Figure(figsize=(width, height), dpi=dpi)
+        fig.suptitle(title)
+
         self.axes = fig.add_subplot(111)
         # We want the axes cleared every time plot() is called
         self.axes.hold(False)
@@ -53,36 +55,25 @@ class MyMplCanvas(FigureCanvas):
         pass
 
 
-class MyStaticMplCanvas(MyMplCanvas):
-    """Simple canvas with a sine plot."""
-
-    def compute_initial_figure(self):
-        t = arange(0.0, 3.0, 0.01)
-        s = sin(2*pi*t)
-        self.axes.plot(t, s)
-
 
 class MyDynamicMplCanvas(MyMplCanvas):
     """A canvas that updates itself every second with a new plot."""
 
     def __init__(self, *args, **kwargs):
         MyMplCanvas.__init__(self, *args, **kwargs)
-        timer = QtCore.QTimer(self)
-        timer.timeout.connect(self.update_figure)
-        timer.start(1000)
 
     def compute_initial_figure(self):
         self.axes.plot([0, 1, 2, 3], [1, 2, 0, 4], 'r')
 
-    def update_figure(self):
+    def update_figure(self, data):
         # Build a list of 4 random integers between 0 and 10 (both inclusive)
         l = [random.randint(0, 10) for i in range(4)]
-
-        self.axes.plot([0, 1, 2, 3], l, 'r')
+        self.axes.plot([0, 1, 2, 3], data, 'r')
         self.draw()
 
-
 class ApplicationWindow(QtWidgets.QMainWindow):
+    pret = 0
+    sc = 0
     def __init__(self):
         QtWidgets.QMainWindow.__init__(self)
         self.setAttribute(QtCore.Qt.WA_DeleteOnClose)
@@ -101,21 +92,55 @@ class ApplicationWindow(QtWidgets.QMainWindow):
 
         self.main_widget = QtWidgets.QWidget(self)
 
-        l = QtWidgets.QVBoxLayout(self.main_widget)
-        sc = MyStaticMplCanvas(self.main_widget, width=5, height=4, dpi=100)
+        l = QtWidgets.QGridLayout(self.main_widget)
+        self.sc = MyDynamicMplCanvas(self.main_widget, width=5, height=4, dpi=100, title='Test')
         dc = MyDynamicMplCanvas(self.main_widget, width=5, height=4, dpi=100)
-        l.addWidget(sc)
-        l.addWidget(dc)
+        self.pret = MyDynamicMplCanvas(self.main_widget, width=5, height=4, dpi=100)
+        val = MyDynamicMplCanvas(self.main_widget, width=5, height=4, dpi=100)
+        profit = MyDynamicMplCanvas(self.main_widget, width=5, height=4, dpi=100)
+        test = MyDynamicMplCanvas(self.main_widget, width=5, height=4, dpi=100)
+
+        timer = QtCore.QTimer(self)
+        timer.timeout.connect(self.update_plot)
+        timer.start(10)
+
+
+
+        l.addWidget(self.sc, 0, 1)
+        l.addWidget(dc, 0, 2)
+        l.addWidget(self.pret, 0, 3)
+        l.addWidget(val, 1, 1)
+        l.addWidget(profit, 1, 2)
+        l.addWidget(test, 1, 3)
+
+
+
+        # Build a list of 4 random integers between 0 and 10 (both inclusive)
 
         self.main_widget.setFocus()
         self.setCentralWidget(self.main_widget)
 
         self.statusBar().showMessage("All hail matplotlib!", 2000)
 
+    def update_plot(self):
+        # Build a list of 4 random integers between 0 and 10 (both inclusive)
+        l = [random.randint(0, 10) for i in range(4)]
+        self.pret.update_figure(l)
+        # Build a list of 4 random integers between 0 and 10 (both inclusive)
+        l = [random.randint(0, 10) for i in range(4)]
+        # Build a list of 4 random integers between 0 and 10 (both inclusive)
+        l = [random.randint(0, 10) for i in range(4)]
+        # Build a list of 4 random integers between 0 and 10 (both inclusive)
+        l = [random.randint(0, 10) for i in range(4)]
+        # Build a list of 4 random integers between 0 and 10 (both inclusive)
+        l = [random.randint(0, 10) for i in range(4)]
+        pass
+
     def fileQuit(self):
+
         self.close()
 
-    def closeEvent(self, ce):
+    def closeEvent(self, comenzi):
         self.fileQuit()
 
     def about(self):
@@ -214,7 +239,6 @@ class inputdialogdemo(QWidget):
             self.le2.setText(str(num))
 
 app = QApplication(sys.argv)
-qApp = QtWidgets.QApplication(sys.argv)
 
 aw = ApplicationWindow()
 aw.setWindowTitle("%s" % progname)
@@ -222,6 +246,5 @@ aw.show()
 
 ex = inputdialogdemo()
 ex.show()
-sys.exit(qApp.exec_())
 sys.exit(app.exec_())
 #qApp.exec_()
