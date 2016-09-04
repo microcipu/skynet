@@ -273,6 +273,15 @@ class ReluActivation(Activation):
     def derivate(x):
         return 0 if x < 0 else 1
 
+class LReluActivation(Activation):
+    @staticmethod
+    def activate(x):
+        return 0.01*x if x < 0 else x
+
+    @staticmethod
+    def derivate(x):
+        return 0.01 if x < 0 else 1
+
 
 class LinearActivation(Activation):
     @staticmethod
@@ -312,6 +321,7 @@ class Builder(object):
     TANH     = TanhActivation
     LINEAR   = LinearActivation
     RELU     = ReluActivation
+    LRELU    = LReluActivation
     SIGMOID  = SigmoidActivation
     SOFTPLUS = SoftplusActivation
 
@@ -450,7 +460,7 @@ class Action(object):
     DOWN = -1
     actions = [+1, 0, -1]
     def __init__(self, action, product):
-        self.action  = action
+        self.action  = Action.actions[action]
         self.product = product
 
 
@@ -520,7 +530,7 @@ class Environment(object):
         return State(day, product.price, product.discount, product.availability, product.rating, product.reviews)
 
     def exec(self, action):
-        action.product.price += action.action * 0.1 * action.product.base
+        action.product.price += 0.06 * action.product.base * action.action
 
     def reward(self, product):
         t = 0.0
@@ -555,7 +565,7 @@ class Simulation(QThread):
         self.app         = app
         self.environment = Environment(self)
         self.memory      = Memory(self)
-        self.network     = Builder.instance().add(Layer(State.size)).add(Layer(30, Builder.SIGMOID)).add(Layer(30, Builder.SIGMOID)).add(Layer(3, Builder.LINEAR)).compile()
+        self.network     = Builder.instance().add(Layer(State.size)).add(Layer(12, Builder.LRELU)).add(Layer(12, Builder.LRELU)).add(Layer(3, Builder.LINEAR)).compile()
 
     def __del__(self):
         print('Simulation.__del__()')
@@ -565,7 +575,7 @@ class Simulation(QThread):
         print('Simulation.run()')
 
         # pre-train
-        print('Pre-training...')
+        print('Starting.',end='')
         i = 0
         while i < 31:
             # for each product
@@ -584,6 +594,7 @@ class Simulation(QThread):
             # start remembering
             self.memory.push((cstate, action, reward, nstate))
             i += 1
+            print('.',end='',flush=True)
 
         print('Simulation...')
         i = 0
@@ -591,6 +602,7 @@ class Simulation(QThread):
             cstate = self.environment.state(self.app.product).inputs
             # network -> predict
             qvals = self.network.predict(cstate)
+            # choose action
             if random.random() < self.eps: # 98% of the time
                 action = random.randrange(0,3)
             else:
@@ -600,12 +612,12 @@ class Simulation(QThread):
 
             # this runs for all products - a nn is required for each product
             self.environment.evolve()
-
+            # observe new state & reward
             nstate = self.environment.state(self.app.product).inputs
             reward = self.environment.reward(self.app.product)
-
+            # remember what you did and the results
             self.memory.push((cstate, action, reward, nstate))
-            batch = self.memory.sample(15)
+            batch = self.memory.sample(1)
             for memory in batch:
                 ostate, action, reward, nstate = memory
                 oqvals  = self.network.predict(ostate)
@@ -613,10 +625,13 @@ class Simulation(QThread):
                 maxqval = np.max(np.array(nqvals))
                 targets = oqvals
                 targets[action] = reward + (self.gamma * maxqval)
-                self.network.train(ostate, targets)
+                #avg = (targets[0] + targets[1] + targets[2])/3
+                #targets = [t/avg for t in targets]
+                outputs = self.network.train(ostate, targets)
+                print(ostate, outputs, targets)
             # has gained more experience
             if self.eps > 0.1:
-                self.eps -= 1/100000
+                self.eps -= 1/1000
 
             # update price history after env evolve
             for product in self.environment.store.products:
@@ -631,7 +646,8 @@ class Simulation(QThread):
             data = [{'graph': 'orders', 'x': DateTime.day(), 'y': o},
                     {'graph': 'price',  'x': DateTime.day(), 'y': self.app.product.price},
                     {'graph': 'profit', 'x': DateTime.day(), 'y': self.app.product.price - self.app.product.base},
-                    {'graph': 'total',  'x': DateTime.day(), 'y': t}]
+                    {'graph': 'total',  'x': DateTime.day(), 'y': t},
+                    {'graph': 'error',  'x': DateTime.day(), 'y': self.network.error}]
             # update gui
             self.app.update(data)
 
@@ -714,8 +730,8 @@ class Window(QMainWindow):
         layout.addWidget(self.profit,   1, 0)
         layout.addWidget(self.price,    2, 0)
         #layout.addWidget(self.features, 3, 0)
-        layout.addWidget(self.total,    4, 0)
-        layout.addWidget(self.error,    5, 0)
+        layout.addWidget(self.error,    4, 0)
+        layout.addWidget(self.total,    5, 0)
 
         self.widget.setFocus()
         self.setCentralWidget(self.widget)
@@ -735,6 +751,8 @@ class Window(QMainWindow):
                     self.profit.plot(row['x'], row['y'])
                 elif row['graph'] == 'total':
                     self.total.plot(row['x'], row['y'])
+                elif row['graph'] == 'error':
+                    self.error.plot(row['x'], row['y'])
 
     def clear(self):
         self.orders.clear()
@@ -770,11 +788,13 @@ class Widget(QWidget):
         self.price = QLineEdit()
         self.price.setStyleSheet("background-color: #FFF")
         self.price.setText(str(product.price))
+        self.price.setReadOnly(True)
         layout.addRow(self.base, self.price)
 
         self.discount = QLineEdit()
         self.discount.setStyleSheet("background-color: #FFF")
         self.discount.setText(str(product.discount))
+        self.discount.setReadOnly(True)
         layout.addRow(QLabel("Discount"), self.discount)
 
         self.category = QLabel('GSM')
